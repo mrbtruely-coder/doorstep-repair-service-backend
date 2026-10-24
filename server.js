@@ -235,7 +235,7 @@ app.get('/api/bookings', (req, res) => {
   res.json({ success: true, count: bookings.length, data: bookings });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Doorstep Repair Service Backend running on port ${PORT}`);
   console.log(`Configured SMTP: ${smtpHost}:${smtpPort} as ${smtpUser}`);
   console.log(`Team Notification Email: ${teamAlertEmail}`);
