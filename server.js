@@ -14,19 +14,31 @@ app.use(express.json());
 // In-memory service bookings store (or connect to DB)
 const bookings = [];
 
-// Configure SMTP credentials
-const smtpHost = process.env.BOOKINGS_EMAIL_HOST || process.env.SMTP_HOST || 'mail.doorstephub.com';
-const smtpPort = parseInt(process.env.BOOKINGS_EMAIL_PORT || process.env.SMTP_PORT || '587', 10);
-const smtpUser = process.env.BOOKINGS_EMAIL_USER || process.env.EMAIL_USER || 'bookings@doorstephub.com';
-const smtpPass = process.env.BOOKINGS_EMAIL_PASS || process.env.EMAIL_PASS || 'jwT6NlDRBYh5';
+// Configure SMTP credentials (supports Gmail or custom SMTP host)
+const smtpHost = process.env.BOOKINGS_EMAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com';
+const smtpPort = parseInt(process.env.BOOKINGS_EMAIL_PORT || process.env.SMTP_PORT || '465', 10);
+const smtpUser = process.env.BOOKINGS_EMAIL_USER || process.env.EMAIL_USER || 'doorstephub@gmail.com';
+const smtpPass = (process.env.BOOKINGS_EMAIL_PASS || process.env.EMAIL_PASS || '').trim();
 const teamAlertEmail = process.env.DOORSTEP_TEAM_EMAIL || 'doorstephub@gmail.com';
 
-// Helper to create transporter for given port
-const getTransporter = (port = smtpPort) => {
+// Helper to create transporter
+const getTransporter = () => {
+  const isGmail = smtpUser.toLowerCase().endsWith('@gmail.com') || smtpHost.toLowerCase().includes('gmail');
+  
+  if (isGmail) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: smtpUser,
+        pass: smtpPass.replace(/\s+/g, '') // remove spaces from Google App Password
+      }
+    });
+  }
+
   return nodemailer.createTransport({
     host: smtpHost,
-    port: port,
-    secure: port === 465, // true for 465 SSL, false for 587 STARTTLS
+    port: smtpPort,
+    secure: smtpPort === 465,
     auth: {
       user: smtpUser,
       pass: smtpPass
@@ -39,28 +51,11 @@ const getTransporter = (port = smtpPort) => {
   });
 };
 
-// Robust dispatch function: tries default port, falls back to 465 if 587 times out
+// Dispatch helper
 const dispatchEmail = async (mailOptions) => {
-  try {
-    const primaryTransporter = getTransporter(smtpPort);
-    const info = await primaryTransporter.sendMail(mailOptions);
-    return { success: true, info, port: smtpPort };
-  } catch (err1) {
-    console.warn(`Primary email dispatch failed on port ${smtpPort}: ${err1.message}`);
-    // If primary port was 587, attempt fallback to 465 SSL
-    if (smtpPort !== 465) {
-      try {
-        console.log('Attempting secondary dispatch on port 465 (SSL)...');
-        const fallbackTransporter = getTransporter(465);
-        const info = await fallbackTransporter.sendMail(mailOptions);
-        return { success: true, info, port: 465 };
-      } catch (err2) {
-        console.error('Fallback email dispatch on port 465 also failed:', err2.message);
-        throw err2;
-      }
-    }
-    throw err1;
-  }
+  const transporter = getTransporter();
+  const info = await transporter.sendMail(mailOptions);
+  return { success: true, info };
 };
 
 app.get('/api/health', (req, res) => {
@@ -70,34 +65,22 @@ app.get('/api/health', (req, res) => {
     smtpHost,
     smtpPort,
     smtpUser: smtpUser ? `${smtpUser.slice(0, 4)}***` : 'Not set',
-    teamEmail: teamAlertEmail
+    teamEmail: teamAlertEmail,
+    isGmail: smtpUser.toLowerCase().endsWith('@gmail.com') || smtpHost.toLowerCase().includes('gmail')
   });
 });
 
 // Diagnostic endpoint to test email delivery
 app.get('/api/test-email', async (req, res) => {
-  const targetEmail = req.query.to || 'vinod.goexperts@gmail.com';
-  const customPort = req.query.port ? parseInt(req.query.port, 10) : null;
+  const targetEmail = req.query.to || 'doorstephub@gmail.com';
   
   try {
-    let result;
-    if (customPort) {
-      const trans = getTransporter(customPort);
-      const info = await trans.sendMail({
-        from: `"Doorstep Repair Service" <${smtpUser}>`,
-        to: targetEmail,
-        subject: `Doorstep Hub Test Email (Port ${customPort})`,
-        text: `This is a test email sent from Doorstep Repair Service backend using port ${customPort}.`
-      });
-      result = { success: true, info, port: customPort };
-    } else {
-      result = await dispatchEmail({
-        from: `"Doorstep Repair Service" <${smtpUser}>`,
-        to: targetEmail,
-        subject: 'Doorstep Hub Test Email',
-        text: 'This is a test email sent from Doorstep Repair Service backend.'
-      });
-    }
+    const result = await dispatchEmail({
+      from: `"Doorstep Repair Service" <${smtpUser}>`,
+      to: targetEmail,
+      subject: 'Doorstep Hub SMTP Test Email',
+      text: 'This is a test email sent from Doorstep Repair Service API to verify email dispatch.'
+    });
 
     res.json({
       success: true,
@@ -110,10 +93,8 @@ app.get('/api/test-email', async (req, res) => {
       message: 'Email test failed',
       error: error.message,
       code: error.code,
-      command: error.command,
       response: error.response,
       smtpHost,
-      smtpPort,
       smtpUser
     });
   }
@@ -211,7 +192,7 @@ app.post('/api/book-service', async (req, res) => {
 
         <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
           &copy; ${new Date().getFullYear()} Doorstep Repair Service. Serving Vijayawada, Guntur & Nellore.<br/>
-          Helpline: +91 9515661677 | Email: bookings@doorstephub.com
+          Helpline: +91 9515661677 | Email: doorstephub@gmail.com
         </div>
       </div>
     `;
@@ -315,6 +296,6 @@ app.get('/api/bookings', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Doorstep Repair Service Backend running on port ${PORT}`);
-  console.log(`Configured SMTP: ${smtpHost}:${smtpPort} as ${smtpUser}`);
+  console.log(`Configured SMTP User: ${smtpUser}`);
   console.log(`Team Notification Email: ${teamAlertEmail}`);
 });
