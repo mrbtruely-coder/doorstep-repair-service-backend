@@ -164,28 +164,31 @@ app.post('/api/book-service', async (req, res) => {
 
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #008ba6; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
-              Booking Details
+              Your Booking Details
             </h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
               <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Booking ID:</td><td style="color: #008ba6; font-weight: 800; font-size: 15px;">#${bookingId}</td></tr>
-              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Service Needed:</td><td style="font-weight: 600;">${serviceType}</td></tr>
-              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">City & Area:</td><td><strong>${city}</strong> (${resolvedLocality})</td></tr>
-              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Scheduled Slot:</td><td>${newBooking.preferredTime}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Customer Name:</td><td style="font-weight: 700; color: #0f172a;">${fullName}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Customer Mobile:</td><td style="font-weight: 800; color: #0284c7; font-size: 15px;">${phone}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Customer Email:</td><td style="font-weight: 600; color: #0f172a;">${email}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Appliance & Service:</td><td style="font-weight: 700; color: #0369a1;">${serviceType}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">City & Locality:</td><td><strong>${city}</strong> (${resolvedLocality})</td></tr>
               <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Service Address:</td><td>${newBooking.address}</td></tr>
-              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Your Mobile:</td><td>${phone}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Arrival Window:</td><td>${newBooking.preferredTime}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Customer Notes:</td><td>${notes || 'None'}</td></tr>
             </table>
           </div>
 
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
             <p style="margin: 0; color: #166534; font-size: 14px; line-height: 1.5;">
-              <strong>Need quick support or want to reschedule?</strong><br/>
-              Call or WhatsApp our support team directly at: <a href="tel:9515661677" style="color: #008ba6; font-weight: bold; text-decoration: none;">+91 9515661677</a>
+              <strong>Need quick assistance or need to reschedule?</strong><br/>
+              Call or WhatsApp Doorstep Support: <a href="tel:9515661677" style="color: #008ba6; font-weight: bold; text-decoration: none;">+91 9515661677</a>
             </p>
           </div>
 
           <div style="background-color: #f1f5f9; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
             <p style="margin: 0; color: #475569; font-size: 13px; line-height: 1.5;">
-              🛡️ <strong>Our Promise:</strong> 100% Genuine spare parts, certified local technician, transparent pricing, and 90-day service warranty.
+              🛡️ <strong>Service Promise:</strong> Verified technicians, genuine spare parts, transparent pricing, and 90-day doorstep warranty.
             </p>
           </div>
         </div>
@@ -201,30 +204,40 @@ app.post('/api/book-service', async (req, res) => {
     const teamHtml = `
       <div style="font-family: Arial, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 620px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #0f172a;">
         <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 8px; color: white;">
-          <h2 style="margin: 0; font-size: 20px; color: #38bdf8;">🔔 New Service Booking Received</h2>
+          <h2 style="margin: 0; font-size: 20px; color: #38bdf8;">🚨 New Customer Booking Alert</h2>
           <p style="margin: 4px 0 0; font-size: 13px; color: #94a3b8;">Booking #${bookingId} &bull; ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
         </div>
 
         <div style="padding: 20px 8px;">
+          <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 18px;">
+            <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 4px;">CUSTOMER CONTACT:</div>
+            <div style="font-size: 20px; font-weight: 800; color: #0284c7;">
+              <a href="tel:${phone}" style="color: #0284c7; text-decoration: none;">📞 ${phone}</a>
+            </div>
+            <div style="font-size: 14px; color: #334155; margin-top: 4px;">
+              <strong>Email:</strong> <a href="mailto:${email}" style="color: #008ba6; text-decoration: underline;">${email || 'Not provided'}</a>
+            </div>
+          </div>
+
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
             <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; width: 35%; color: #64748b;">Booking ID:</td><td style="color: #008ba6; font-weight: 800; font-size: 16px;">#${bookingId}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Name:</td><td style="font-weight: 700; color: #0f172a;">${fullName}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Phone Number:</td><td><a href="tel:${phone}" style="color: #0284c7; font-weight: bold; font-size: 16px; text-decoration: none;">📞 ${phone}</a></td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Email:</td><td>${email || 'Not provided'}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Service Type:</td><td><span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-weight: 700;">${serviceType}</span></td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Name:</td><td style="font-weight: 700; color: #0f172a; font-size: 15px;">${fullName}</td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Mobile:</td><td><a href="tel:${phone}" style="color: #0284c7; font-weight: 800; font-size: 16px; text-decoration: none;">📞 ${phone}</a></td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Email:</td><td><strong>${email || 'Not provided'}</strong></td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Service Needed:</td><td><span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-weight: 700;">${serviceType}</span></td></tr>
             <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">City & Locality:</td><td><strong>${city}</strong> &mdash; ${resolvedLocality}</td></tr>
             <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Address:</td><td>${newBooking.address}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Preferred Time:</td><td>${newBooking.preferredTime}</td></tr>
-            <tr><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Notes / Remarks:</td><td>${notes || 'None'}</td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Preferred Slot:</td><td>${newBooking.preferredTime}</td></tr>
+            <tr><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Notes:</td><td>${notes || 'None'}</td></tr>
           </table>
 
           <div style="margin-top: 24px; text-align: center;">
-            <a href="tel:${phone}" style="display: inline-block; background: #008ba6; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none;">Call Customer Now (${phone})</a>
+            <a href="tel:${phone}" style="display: inline-block; background: #008ba6; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 15px;">Call Customer Now (${phone})</a>
           </div>
         </div>
 
         <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 12px; color: #94a3b8; text-align: center;">
-          Automated Doorstep Hub booking notification &bull; Dispatch to local engineer
+          Doorstep Hub Real-Time Dispatch Alert &bull; Customer Mobile: ${phone}
         </div>
       </div>
     `;
@@ -250,7 +263,7 @@ app.post('/api/book-service', async (req, res) => {
       await dispatchEmail({
         from: `"Doorstep Bookings Alert" <${smtpUser}>`,
         to: teamAlertEmail,
-        subject: `🔔 New Service Booking: #${bookingId} - ${fullName} (${city} - ${serviceType})`,
+        subject: `🚨 NEW BOOKING #${bookingId}: ${fullName} | 📞 ${phone} | ${city} (${serviceType})`,
         html: teamHtml
       });
       teamEmailSent = true;
