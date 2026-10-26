@@ -1,25 +1,40 @@
-import express from 'express';
-import cors from 'cors';
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
+const express = require('express');
+const cors = require('cors');
+const nodemailer = require('nodemailer');
+const dotenv = require('dotenv');
+const path = require('path');
+const fs = require('fs');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// Universal CORS configuration (handles preflight OPTIONS requests)
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
+
+// Path to brand logo for inline CID embedding
+const logoPath = path.join(__dirname, 'assets', 'logo.png');
+const hasLogo = fs.existsSync(logoPath);
 
 // In-memory service bookings store (or connect to DB)
 const bookings = [];
 
-// Configure SMTP credentials (supports Gmail or custom SMTP host)
-const smtpHost = process.env.BOOKINGS_EMAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com';
+// Configure SMTP credentials (cPanel or custom SMTP host)
+const smtpHost = process.env.BOOKINGS_EMAIL_HOST || process.env.SMTP_HOST || 'homeappliancerepairsservices.com';
 const smtpPort = parseInt(process.env.BOOKINGS_EMAIL_PORT || process.env.SMTP_PORT || '465', 10);
-const smtpUser = process.env.BOOKINGS_EMAIL_USER || process.env.EMAIL_USER || 'doorstephub@gmail.com';
+const smtpUser = process.env.BOOKINGS_EMAIL_USER || process.env.EMAIL_USER || 'bookinginfo@homeappliancerepairsservices.com';
 const smtpPass = (process.env.BOOKINGS_EMAIL_PASS || process.env.EMAIL_PASS || '').trim();
-const teamAlertEmail = process.env.DOORSTEP_TEAM_EMAIL || 'doorstephub@gmail.com';
+const teamAlertEmail = process.env.DOORSTEP_TEAM_EMAIL || smtpUser;
+
+// Official App Store Links
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.doorstephub.customer&pcampaignid=web_share';
+const APP_STORE_URL = 'https://apps.apple.com/in/app/doorstep-hub-all-your-needs/id6475340236';
 
 // Helper to create transporter
 const getTransporter = () => {
@@ -46,40 +61,96 @@ const getTransporter = () => {
     tls: {
       rejectUnauthorized: false
     },
-    connectionTimeout: 12000,
-    greetingTimeout: 12000
+    connectionTimeout: 15000,
+    greetingTimeout: 15000
   });
 };
 
-// Dispatch helper
+// Dispatch helper with automated logo attachment
 const dispatchEmail = async (mailOptions) => {
   const transporter = getTransporter();
-  const info = await transporter.sendMail(mailOptions);
+  
+  // Attach logo if exists and not already attached
+  const attachments = [...(mailOptions.attachments || [])];
+  if (hasLogo && !attachments.some(a => a.cid === 'homeApplianceLogo')) {
+    attachments.push({
+      filename: 'home-appliance-logo.png',
+      path: logoPath,
+      cid: 'homeApplianceLogo'
+    });
+  }
+
+  const finalMailOptions = {
+    ...mailOptions,
+    attachments
+  };
+
+  const info = await transporter.sendMail(finalMailOptions);
   return { success: true, info };
 };
 
+// Root welcome endpoint
+app.get('/', (req, res) => {
+  res.json({
+    status: 'online',
+    service: 'Home Appliance & Doorstep Repair Service API',
+    endpoints: {
+      health: '/api/health',
+      testEmail: '/api/test-email',
+      bookService: '/api/book-service (POST)'
+    }
+  });
+});
+
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    message: 'Doorstep Repair Service API is active',
+  res.json({
+    status: 'ok',
+    message: 'Home Appliance Repair Service API is active',
     smtpHost,
     smtpPort,
-    smtpUser: smtpUser ? `${smtpUser.slice(0, 4)}***` : 'Not set',
+    smtpUser: smtpUser ? `${smtpUser.slice(0, 4)}***@${smtpUser.split('@')[1] || ''}` : 'Not set',
     teamEmail: teamAlertEmail,
-    isGmail: smtpUser.toLowerCase().endsWith('@gmail.com') || smtpHost.toLowerCase().includes('gmail')
+    hasLogo,
+    logoPath: hasLogo ? logoPath : 'Not found'
   });
 });
 
 // Diagnostic endpoint to test email delivery
 app.get('/api/test-email', async (req, res) => {
-  const targetEmail = req.query.to || 'doorstephub@gmail.com';
-  
+  const targetEmail = req.query.to || smtpUser;
+
   try {
     const result = await dispatchEmail({
-      from: `"Doorstep Repair Service" <${smtpUser}>`,
+      from: `"Home Appliance Repair Services" <${smtpUser}>`,
       to: targetEmail,
-      subject: 'Doorstep Hub SMTP Test Email',
-      text: 'This is a test email sent from Doorstep Repair Service API to verify email dispatch.'
+      subject: '✅ Home Appliance Service SMTP & Logo Test Email',
+      html: `
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.05);">
+          <div style="background: #ffffff; padding: 20px; text-align: center; border-bottom: 2px solid #f1f5f9;">
+            <img src="cid:homeApplianceLogo" alt="Home Appliance Repair Services" style="max-height: 52px; width: auto; max-width: 260px; object-fit: contain; display: inline-block;" />
+          </div>
+          <div style="background: linear-gradient(135deg, #008ba6 0%, #005a6f 100%); padding: 20px; color: white; text-align: center;">
+            <h2 style="margin: 0; font-size: 20px; color: #ffffff;">SMTP Connection & Logo Test</h2>
+            <p style="margin: 4px 0 0; font-size: 13px; color: #e0f2fe;">Doorstep & Home Appliance Repair Services</p>
+          </div>
+          <div style="padding: 24px; color: #334155;">
+            <p style="font-size: 15px; margin-top: 0;">Hello,</p>
+            <p style="font-size: 14px; line-height: 1.6;">
+              This is a test email confirming that your email configuration for <strong>${smtpUser}</strong> on host <strong>${smtpHost}:${smtpPort}</strong> is functioning properly and your official company logo is rendering in the email header.
+            </p>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin: 16px 0; font-size: 13px;">
+              <div><strong>Host:</strong> ${smtpHost}</div>
+              <div><strong>Port:</strong> ${smtpPort} (SSL)</div>
+              <div><strong>Sender Account:</strong> ${smtpUser}</div>
+              <div><strong>Status:</strong> Active & Connected</div>
+            </div>
+          </div>
+          <div style="border-top: 1px solid #e2e8f0; padding: 14px; text-align: center; font-size: 12px; color: #64748b; background: #f8fafc;">
+            &copy; ${new Date().getFullYear()} Home Appliance Repair Services &bull; Support: <a href="mailto:${smtpUser}" style="color: #008ba6; text-decoration: none;">${smtpUser}</a>
+          </div>
+        </div>
+      `,
+      text: `Home Appliance Repair Service SMTP & Logo Test Email sent successfully via ${smtpHost}:${smtpPort} as ${smtpUser}.`
     });
 
     res.json({
@@ -95,6 +166,7 @@ app.get('/api/test-email', async (req, res) => {
       code: error.code,
       response: error.response,
       smtpHost,
+      smtpPort,
       smtpUser
     });
   }
@@ -147,24 +219,30 @@ app.post('/api/book-service', async (req, res) => {
     let teamError = null;
     let emailNotice = '';
 
-    // 1. Email template for Customer (Simple English, user-friendly, clear)
+    // 1. Email template for Customer with embedded Logo Header & Industry Standard App Store Footer
     const customerHtml = `
-      <div style="font-family: Arial, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 620px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
-        <div style="background: linear-gradient(135deg, #008ba6 0%, #005a6f 100%); padding: 24px; border-radius: 8px; color: white; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.01em;">Doorstep Repair Service</h1>
-          <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.95;">Fast & Reliable Home Appliance Repair in ${city}</p>
+      <div style="font-family: 'Segoe UI', Arial, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 620px; margin: auto; padding: 0; border: 1px solid #e2e8f0; border-radius: 14px; background-color: #ffffff; color: #1e293b; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+        <!-- Official Logo Header -->
+        <div style="background: #ffffff; padding: 20px 24px; text-align: center; border-bottom: 2px solid #f1f5f9;">
+          <img src="cid:homeApplianceLogo" alt="Home Appliance Repair Services" style="max-height: 54px; width: auto; max-width: 260px; object-fit: contain; display: inline-block;" />
         </div>
 
-        <div style="padding: 24px 8px;">
+        <!-- Banner Header -->
+        <div style="background: linear-gradient(135deg, #008ba6 0%, #005a6f 100%); padding: 22px 24px; color: white; text-align: center;">
+          <h1 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; color: #ffffff;">Home Appliance Repair Services</h1>
+          <p style="margin: 6px 0 0; font-size: 13.5px; opacity: 0.95; color: #e0f2fe;">Fast & Reliable Doorstep Technician in ${city}</p>
+        </div>
+
+        <div style="padding: 24px 20px;">
           <h2 style="color: #0f172a; margin-top: 0; font-size: 20px;">Your Booking is Confirmed! 🎉</h2>
           <p style="color: #334155; font-size: 15px; line-height: 1.6;">
             Hello <strong>${fullName}</strong>,<br/>
-            Thank you for booking with Doorstep Repair Service! We have received your repair request. Our certified technician will visit your location shortly.
+            Thank you for choosing <strong>Home Appliance Repair Services</strong>! We have registered your service request. Our certified technician will arrive at your doorstep in your preferred slot.
           </p>
 
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #008ba6; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
-              Your Booking Details
+              Booking Summary
             </h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
               <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Booking ID:</td><td style="color: #008ba6; font-weight: 800; font-size: 15px;">#${bookingId}</td></tr>
@@ -182,7 +260,7 @@ app.post('/api/book-service', async (req, res) => {
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
             <p style="margin: 0; color: #166534; font-size: 14px; line-height: 1.5;">
               <strong>Need quick assistance or need to reschedule?</strong><br/>
-              Call or WhatsApp Doorstep Support: <a href="tel:9515661677" style="color: #008ba6; font-weight: bold; text-decoration: none;">+91 9515661677</a>
+              Call or WhatsApp Support: <a href="tel:9515661677" style="color: #008ba6; font-weight: bold; text-decoration: none;">+91 9515661677</a> &bull; Email: <a href="mailto:${smtpUser}" style="color: #008ba6; text-decoration: none; font-weight: 600;">${smtpUser}</a>
             </p>
           </div>
 
@@ -193,22 +271,57 @@ app.post('/api/book-service', async (req, res) => {
           </div>
         </div>
 
-        <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
-          &copy; ${new Date().getFullYear()} Doorstep Repair Service. Serving Vijayawada, Guntur & Nellore.<br/>
-          Helpline: +91 9515661677 | Email: doorstephub@gmail.com
+        <!-- Industry Standard Responsive App Download Section -->
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 22px 14px; text-align: center;">
+          <p style="margin: 0 0 6px; font-size: 14.5px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em;">
+            Experience Faster Bookings on Doorstep Hub App
+          </p>
+          <p style="margin: 0 0 14px; font-size: 12.5px; color: #64748b; line-height: 1.4; max-width: 440px; margin-left: auto; margin-right: auto;">
+            Track your technician in real-time, get instant discounts, and manage appliance warranty.
+          </p>
+          
+          <div style="text-align: center; margin: 0 auto;">
+            <div style="display: inline-block; vertical-align: middle; margin: 5px 6px;">
+              <a href="${PLAY_STORE_URL}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; display: inline-block;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" height="42" style="display: block; height: 42px; width: auto; max-width: 140px; border: 0;" />
+              </a>
+            </div>
+            <div style="display: inline-block; vertical-align: middle; margin: 5px 6px;">
+              <a href="${APP_STORE_URL}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; display: inline-block;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" alt="Download on the App Store" height="42" style="display: block; height: 42px; width: auto; max-width: 140px; border: 0;" />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="border-top: 1px solid #e2e8f0; padding: 18px 20px; text-align: center; color: #64748b; font-size: 12px; background: #ffffff;">
+          <div style="margin-bottom: 8px;">
+            <span style="display: inline-block; background: #e0f2fe; color: #0284c7; font-weight: 700; font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid #bae6fd;">
+              🛡️ Verified &amp; Trusted by Doorstep Hub
+            </span>
+          </div>
+          &copy; ${new Date().getFullYear()} Home Appliance Repair Services. Serving Vijayawada, Guntur &amp; Nellore.<br/>
+          Helpline: <a href="tel:9515661677" style="color: #008ba6; text-decoration: none; font-weight: bold;">+91 9515661677</a> | Email: <a href="mailto:${smtpUser}" style="color: #008ba6; text-decoration: none;">${smtpUser}</a>
         </div>
       </div>
     `;
 
-    // 2. Email template for Doorstep Team (doorstephub@gmail.com)
+    // 2. Email template for Internal Team with Logo Header & App Store links
     const teamHtml = `
-      <div style="font-family: Arial, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 620px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #0f172a;">
-        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 8px; color: white;">
-          <h2 style="margin: 0; font-size: 20px; color: #38bdf8;">🚨 New Customer Booking Alert</h2>
-          <p style="margin: 4px 0 0; font-size: 13px; color: #94a3b8;">Booking #${bookingId} &bull; ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+      <div style="font-family: 'Segoe UI', Arial, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 620px; margin: auto; padding: 0; border: 1px solid #e2e8f0; border-radius: 14px; background-color: #ffffff; color: #0f172a; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+        <!-- Official Logo Header -->
+        <div style="background: #ffffff; padding: 18px 24px; text-align: center; border-bottom: 2px solid #f1f5f9;">
+          <img src="cid:homeApplianceLogo" alt="Home Appliance Repair Services" style="max-height: 48px; width: auto; max-width: 240px; object-fit: contain; display: inline-block;" />
         </div>
 
-        <div style="padding: 20px 8px;">
+        <!-- Banner Alert -->
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 18px 24px; color: white;">
+          <h2 style="margin: 0; font-size: 19px; color: #38bdf8;">🚨 New Customer Booking Alert</h2>
+          <p style="margin: 4px 0 0; font-size: 12.5px; color: #94a3b8;">Booking #${bookingId} &bull; ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+        </div>
+
+        <div style="padding: 20px 18px;">
           <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 18px;">
             <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 4px;">CUSTOMER CONTACT:</div>
             <div style="font-size: 20px; font-weight: 800; color: #0284c7;">
@@ -236,8 +349,8 @@ app.post('/api/book-service', async (req, res) => {
           </div>
         </div>
 
-        <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 12px; color: #94a3b8; text-align: center;">
-          Doorstep Hub Real-Time Dispatch Alert &bull; Customer Mobile: ${phone}
+        <div style="border-top: 1px solid #e2e8f0; padding: 14px; font-size: 12px; color: #94a3b8; text-align: center; background: #f8fafc;">
+          Home Appliance Repair Services Real-Time Dispatch Alert &bull; Customer Mobile: ${phone}
         </div>
       </div>
     `;
@@ -246,7 +359,7 @@ app.post('/api/book-service', async (req, res) => {
     if (email && email.includes('@')) {
       try {
         await dispatchEmail({
-          from: `"Doorstep Repair Service" <${smtpUser}>`,
+          from: `"Home Appliance Repair Services" <${smtpUser}>`,
           to: email,
           subject: `Booking Confirmed #${bookingId} - ${serviceType} Repair (${city})`,
           html: customerHtml
@@ -258,17 +371,17 @@ app.post('/api/book-service', async (req, res) => {
       }
     }
 
-    // Dispatch 2: To Doorstep Team (doorstephub@gmail.com)
+    // Dispatch 2: To Team Alert Email
     try {
       await dispatchEmail({
-        from: `"Doorstep Bookings Alert" <${smtpUser}>`,
+        from: `"Home Appliance Bookings Alert" <${smtpUser}>`,
         to: teamAlertEmail,
         subject: `🚨 NEW BOOKING #${bookingId}: ${fullName} | 📞 ${phone} | ${city} (${serviceType})`,
         html: teamHtml
       });
       teamEmailSent = true;
     } catch (teamErr) {
-      console.error('Team email send error (doorstephub@gmail.com):', teamErr.message);
+      console.error(`Team email send error (${teamAlertEmail}):`, teamErr.message);
       teamError = teamErr.message;
     }
 
@@ -307,8 +420,18 @@ app.get('/api/bookings', (req, res) => {
   res.json({ success: true, count: bookings.length, data: bookings });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Doorstep Repair Service Backend running on port ${PORT}`);
-  console.log(`Configured SMTP User: ${smtpUser}`);
-  console.log(`Team Notification Email: ${teamAlertEmail}`);
-});
+if (typeof PhusionPassenger !== 'undefined') {
+  app.listen('passenger', () => {
+    console.log('Home Appliance Repair Service Backend running inside Phusion Passenger');
+  });
+} else {
+  app.listen(PORT, () => {
+    console.log(`Home Appliance Repair Service Backend running on port ${PORT}`);
+    console.log(`Configured SMTP Host: ${smtpHost}:${smtpPort}`);
+    console.log(`Configured SMTP User: ${smtpUser}`);
+    console.log(`Team Notification Email: ${teamAlertEmail}`);
+    console.log(`Logo Embedded Status: ${hasLogo ? 'Found at ' + logoPath : 'Not found'}`);
+  });
+}
+
+module.exports = app;
