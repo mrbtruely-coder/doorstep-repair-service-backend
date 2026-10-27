@@ -180,9 +180,17 @@ app.post('/api/book-service', async (req, res) => {
       phone,
       city,
       locality,
+      otherLocality,
+      isOtherLocation,
       serviceType,
       preferredDate,
       preferredTime,
+      slot,
+      date,
+      time,
+      bookingSlot,
+      appointmentDate,
+      appointmentTime,
       address,
       notes
     } = req.body;
@@ -195,7 +203,24 @@ app.post('/api/book-service', async (req, res) => {
     }
 
     const bookingId = 'DS-' + Date.now().toString().slice(-6);
-    const resolvedLocality = locality || 'Central Hub Area';
+
+    // Resolve date, slot, and time dynamically
+    const resolvedDate = appointmentDate || preferredDate || date || new Date().toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    const resolvedSlot = slot || bookingSlot || preferredTime || time || 'Within 90 Minutes (Express Dispatch)';
+    const resolvedTime = appointmentTime || time || preferredTime || slot || resolvedSlot;
+
+    // Detect if customer selected "Other Location"
+    const hasCustomLocation = Boolean(
+      isOtherLocation || 
+      (otherLocality && otherLocality.trim().length > 0) || 
+      (locality && (locality.toLowerCase().includes('other') || locality.includes('📍')))
+    );
+
+    const customLocationName = (otherLocality && otherLocality.trim()) || 
+      (hasCustomLocation && locality ? locality.replace(/📍|other sub-area \/ colony\.\.\.|other location \/ area\.\.\./gi, '').trim() : null);
+
+    const resolvedLocality = customLocationName || locality || 'Central Hub Area';
+
     const newBooking = {
       bookingId,
       fullName,
@@ -203,9 +228,14 @@ app.post('/api/book-service', async (req, res) => {
       phone,
       city,
       locality: resolvedLocality,
+      otherLocality: customLocationName || null,
+      isOtherLocation: hasCustomLocation,
       serviceType,
-      preferredDate: preferredDate || new Date().toISOString().split('T')[0],
-      preferredTime: preferredTime || 'Within 90 Minutes (Express Dispatch)',
+      preferredDate: resolvedDate,
+      preferredTime: resolvedSlot,
+      date: resolvedDate,
+      slot: resolvedSlot,
+      time: resolvedTime,
       address: address || `${resolvedLocality}, ${city}`,
       notes: notes || '',
       createdAt: new Date().toISOString()
@@ -219,7 +249,7 @@ app.post('/api/book-service', async (req, res) => {
     let teamError = null;
     let emailNotice = '';
 
-    // 1. Email template for Customer with embedded Logo Header & Industry Standard App Store Footer
+    // 1. Email template for Customer with embedded Logo Header, dynamic Slot/Date/Time & App Store Footer
     const customerHtml = `
       <div style="font-family: 'Segoe UI', Arial, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 620px; margin: auto; padding: 0; border: 1px solid #e2e8f0; border-radius: 14px; background-color: #ffffff; color: #1e293b; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
         <!-- Official Logo Header -->
@@ -237,8 +267,20 @@ app.post('/api/book-service', async (req, res) => {
           <h2 style="color: #0f172a; margin-top: 0; font-size: 20px;">Your Booking is Confirmed! 🎉</h2>
           <p style="color: #334155; font-size: 15px; line-height: 1.6;">
             Hello <strong>${fullName}</strong>,<br/>
-            Thank you for choosing <strong>Home Appliance Repair Services</strong>! We have registered your service request. Our certified technician will arrive at your doorstep in your preferred slot.
+            Thank you for choosing <strong>Home Appliance Repair Services</strong>! We have registered your service request. Our certified technician will arrive at your doorstep for your requested slot.
           </p>
+
+          <!-- Highlighted Appointment Box -->
+          <div style="background: #ecfeff; border: 1.5px solid #a5f3fc; border-radius: 12px; padding: 16px 18px; margin: 18px 0;">
+            <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.08em; color: #0891b2; margin-bottom: 4px;">
+              CONFIRMED APPOINTMENT SCHEDULE
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 14.5px; color: #0e7490; font-weight: 700;">
+              <div>📅 <strong style="color: #0891b2;">Date:</strong> ${resolvedDate}</div>
+              <div>⏰ <strong style="color: #0891b2;">Slot:</strong> ${resolvedSlot}</div>
+              <div>🕒 <strong style="color: #0891b2;">Time:</strong> ${resolvedTime}</div>
+            </div>
+          </div>
 
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #008ba6; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
@@ -251,8 +293,25 @@ app.post('/api/book-service', async (req, res) => {
               <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Customer Email:</td><td style="font-weight: 600; color: #0f172a;">${email}</td></tr>
               <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Appliance & Service:</td><td style="font-weight: 700; color: #0369a1;">${serviceType}</td></tr>
               <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">City & Locality:</td><td><strong>${city}</strong> (${resolvedLocality})</td></tr>
+              ${customLocationName ? `
+              <tr style="background: #f0fbfd;">
+                <td style="padding: 8px 0; font-weight: bold; color: #008ba6;">Other Location:</td>
+                <td><span style="display: inline-block; background: #ecfeff; border: 1px solid #a5f3fc; color: #0891b2; font-weight: 800; padding: 3px 8px; border-radius: 6px;">📍 ${customLocationName}</span></td>
+              </tr>
+              ` : ''}
               <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Service Address:</td><td>${newBooking.address}</td></tr>
-              <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Arrival Window:</td><td>${newBooking.preferredTime}</td></tr>
+              <tr style="background: #f0fdf4;">
+                <td style="padding: 9px 8px; font-weight: bold; color: #166534; border-top: 1px solid #bbf7d0; border-bottom: 1px solid #bbf7d0;">📅 Appointment Date:</td>
+                <td style="padding: 9px 8px; font-weight: 800; color: #166534; border-top: 1px solid #bbf7d0; border-bottom: 1px solid #bbf7d0;">${resolvedDate}</td>
+              </tr>
+              <tr style="background: #f0fdf4;">
+                <td style="padding: 9px 8px; font-weight: bold; color: #166534; border-bottom: 1px solid #bbf7d0;">⏰ Appointment Slot:</td>
+                <td style="padding: 9px 8px; font-weight: 800; color: #166534; border-bottom: 1px solid #bbf7d0;">${resolvedSlot}</td>
+              </tr>
+              <tr style="background: #f0fdf4;">
+                <td style="padding: 9px 8px; font-weight: bold; color: #166534; border-bottom: 1px solid #bbf7d0;">🕒 Service Time:</td>
+                <td style="padding: 9px 8px; font-weight: 700; color: #15803d; border-bottom: 1px solid #bbf7d0;">${resolvedTime}</td>
+              </tr>
               <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Customer Notes:</td><td>${notes || 'None'}</td></tr>
             </table>
           </div>
@@ -307,7 +366,7 @@ app.post('/api/book-service', async (req, res) => {
       </div>
     `;
 
-    // 2. Email template for Internal Team with Logo Header & App Store links
+    // 2. Email template for Internal Team with Logo Header, dynamic Slot/Date/Time & Contact Actions
     const teamHtml = `
       <div style="font-family: 'Segoe UI', Arial, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 620px; margin: auto; padding: 0; border: 1px solid #e2e8f0; border-radius: 14px; background-color: #ffffff; color: #0f172a; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
         <!-- Official Logo Header -->
@@ -322,7 +381,8 @@ app.post('/api/book-service', async (req, res) => {
         </div>
 
         <div style="padding: 20px 18px;">
-          <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 18px;">
+          <!-- Customer & Schedule Highlight Card -->
+          <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
             <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 4px;">CUSTOMER CONTACT:</div>
             <div style="font-size: 20px; font-weight: 800; color: #0284c7;">
               <a href="tel:${phone}" style="color: #0284c7; text-decoration: none;">📞 ${phone}</a>
@@ -330,6 +390,25 @@ app.post('/api/book-service', async (req, res) => {
             <div style="font-size: 14px; color: #334155; margin-top: 4px;">
               <strong>Email:</strong> <a href="mailto:${email}" style="color: #008ba6; text-decoration: underline;">${email || 'Not provided'}</a>
             </div>
+            <div style="font-size: 14px; color: #334155; margin-top: 4px;">
+              <strong>Dispatch City:</strong> <strong>${city}</strong>
+            </div>
+
+            <!-- Dynamic Schedule Highlight for Team -->
+            <div style="background: #ecfeff; border: 1.5px solid #67e8f9; color: #0e7490; padding: 10px 14px; border-radius: 8px; margin-top: 10px; font-size: 14px;">
+              <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.06em; color: #0891b2; margin-bottom: 4px;">REQUESTED SLOT &amp; TIME:</div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div>📅 <strong>Date:</strong> <span style="font-weight: 800; color: #0891b2;">${resolvedDate}</span></div>
+                <div>⏰ <strong>Slot:</strong> <span style="font-weight: 800; color: #0891b2;">${resolvedSlot}</span></div>
+                <div>🕒 <strong>Time Window:</strong> <span style="font-weight: 800; color: #0891b2;">${resolvedTime}</span></div>
+              </div>
+            </div>
+
+            ${customLocationName ? `
+            <div style="background: #fef3c7; border: 1.5px solid #fde68a; color: #92400e; padding: 10px 14px; border-radius: 8px; margin-top: 10px; font-size: 14px; font-weight: 700;">
+              📍 CUSTOMER SELECTED OTHER LOCATION: <span style="font-size: 16px; color: #b45309; text-decoration: underline;">${customLocationName}</span>
+            </div>
+            ` : ''}
           </div>
 
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -338,9 +417,31 @@ app.post('/api/book-service', async (req, res) => {
             <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Mobile:</td><td><a href="tel:${phone}" style="color: #0284c7; font-weight: 800; font-size: 16px; text-decoration: none;">📞 ${phone}</a></td></tr>
             <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Email:</td><td><strong>${email || 'Not provided'}</strong></td></tr>
             <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Service Needed:</td><td><span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-weight: 700;">${serviceType}</span></td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">City & Locality:</td><td><strong>${city}</strong> &mdash; ${resolvedLocality}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Address:</td><td>${newBooking.address}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Preferred Slot:</td><td>${newBooking.preferredTime}</td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">City:</td><td><strong>${city}</strong></td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Locality:</td><td>${resolvedLocality}</td></tr>
+            ${customLocationName ? `
+            <tr style="border-bottom: 1px solid #f1f5f9; background: #fffbeb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #b45309;">📍 Other Location Entered:</td>
+              <td>
+                <span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 14.5px; border: 1.5px solid #fde68a;">
+                  ${customLocationName}
+                </span>
+              </td>
+            </tr>
+            ` : ''}
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Complete Address:</td><td><strong>${newBooking.address}</strong></td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9; background: #f0fdf4;">
+              <td style="padding: 10px 6px; font-weight: bold; color: #166534;">📅 Appointment Date:</td>
+              <td style="padding: 10px 6px; font-weight: 800; color: #166534;">${resolvedDate}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9; background: #f0fdf4;">
+              <td style="padding: 10px 6px; font-weight: bold; color: #166534;">⏰ Appointment Slot:</td>
+              <td style="padding: 10px 6px; font-weight: 800; color: #166534;">${resolvedSlot}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9; background: #f0fdf4;">
+              <td style="padding: 10px 6px; font-weight: bold; color: #166534;">🕒 Service Time Window:</td>
+              <td style="padding: 10px 6px; font-weight: 700; color: #15803d;">${resolvedTime}</td>
+            </tr>
             <tr><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Notes:</td><td>${notes || 'None'}</td></tr>
           </table>
 
@@ -361,7 +462,7 @@ app.post('/api/book-service', async (req, res) => {
         await dispatchEmail({
           from: `"Home Appliance Repair Services" <${smtpUser}>`,
           to: email,
-          subject: `Booking Confirmed #${bookingId} - ${serviceType} Repair (${city})`,
+          subject: `Booking Confirmed #${bookingId} - ${serviceType} on ${resolvedDate} (${resolvedSlot})`,
           html: customerHtml
         });
         customerEmailSent = true;
@@ -372,11 +473,15 @@ app.post('/api/book-service', async (req, res) => {
     }
 
     // Dispatch 2: To Team Alert Email
+    const teamSubject = customLocationName 
+      ? `🚨 NEW BOOKING #${bookingId}: ${fullName} | 📞 ${phone} | 📅 ${resolvedDate} [${resolvedSlot}] | ${city} (OTHER: ${customLocationName}) - ${serviceType}`
+      : `🚨 NEW BOOKING #${bookingId}: ${fullName} | 📞 ${phone} | 📅 ${resolvedDate} [${resolvedSlot}] | ${city} (${serviceType})`;
+
     try {
       await dispatchEmail({
         from: `"Home Appliance Bookings Alert" <${smtpUser}>`,
         to: teamAlertEmail,
-        subject: `🚨 NEW BOOKING #${bookingId}: ${fullName} | 📞 ${phone} | ${city} (${serviceType})`,
+        subject: teamSubject,
         html: teamHtml
       });
       teamEmailSent = true;
