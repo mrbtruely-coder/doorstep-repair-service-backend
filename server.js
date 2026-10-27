@@ -270,18 +270,6 @@ app.post('/api/book-service', async (req, res) => {
             Thank you for choosing <strong>Home Appliance Repair Services</strong>! We have registered your service request. Our certified technician will arrive at your doorstep for your requested slot.
           </p>
 
-          <!-- Highlighted Appointment Box -->
-          <div style="background: #ecfeff; border: 1.5px solid #a5f3fc; border-radius: 12px; padding: 16px 18px; margin: 18px 0;">
-            <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.08em; color: #0891b2; margin-bottom: 4px;">
-              CONFIRMED APPOINTMENT SCHEDULE
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 14.5px; color: #0e7490; font-weight: 700;">
-              <div>📅 <strong style="color: #0891b2;">Date:</strong> ${resolvedDate}</div>
-              <div>⏰ <strong style="color: #0891b2;">Slot:</strong> ${resolvedSlot}</div>
-              <div>🕒 <strong style="color: #0891b2;">Time:</strong> ${resolvedTime}</div>
-            </div>
-          </div>
-
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #008ba6; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
               Booking Summary
@@ -307,10 +295,6 @@ app.post('/api/book-service', async (req, res) => {
               <tr style="background: #f0fdf4;">
                 <td style="padding: 9px 8px; font-weight: bold; color: #166534; border-bottom: 1px solid #bbf7d0;">⏰ Appointment Slot:</td>
                 <td style="padding: 9px 8px; font-weight: 800; color: #166534; border-bottom: 1px solid #bbf7d0;">${resolvedSlot}</td>
-              </tr>
-              <tr style="background: #f0fdf4;">
-                <td style="padding: 9px 8px; font-weight: bold; color: #166534; border-bottom: 1px solid #bbf7d0;">🕒 Service Time:</td>
-                <td style="padding: 9px 8px; font-weight: 700; color: #15803d; border-bottom: 1px solid #bbf7d0;">${resolvedTime}</td>
               </tr>
               <tr><td style="padding: 8px 0; font-weight: bold; color: #64748b;">Customer Notes:</td><td>${notes || 'None'}</td></tr>
             </table>
@@ -396,11 +380,10 @@ app.post('/api/book-service', async (req, res) => {
 
             <!-- Dynamic Schedule Highlight for Team -->
             <div style="background: #ecfeff; border: 1.5px solid #67e8f9; color: #0e7490; padding: 10px 14px; border-radius: 8px; margin-top: 10px; font-size: 14px;">
-              <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.06em; color: #0891b2; margin-bottom: 4px;">REQUESTED SLOT &amp; TIME:</div>
+              <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.06em; color: #0891b2; margin-bottom: 4px;">REQUESTED SLOT:</div>
               <div style="display: flex; flex-direction: column; gap: 4px;">
                 <div>📅 <strong>Date:</strong> <span style="font-weight: 800; color: #0891b2;">${resolvedDate}</span></div>
                 <div>⏰ <strong>Slot:</strong> <span style="font-weight: 800; color: #0891b2;">${resolvedSlot}</span></div>
-                <div>🕒 <strong>Time Window:</strong> <span style="font-weight: 800; color: #0891b2;">${resolvedTime}</span></div>
               </div>
             </div>
 
@@ -437,10 +420,6 @@ app.post('/api/book-service', async (req, res) => {
             <tr style="border-bottom: 1px solid #f1f5f9; background: #f0fdf4;">
               <td style="padding: 10px 6px; font-weight: bold; color: #166534;">⏰ Appointment Slot:</td>
               <td style="padding: 10px 6px; font-weight: 800; color: #166534;">${resolvedSlot}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f1f5f9; background: #f0fdf4;">
-              <td style="padding: 10px 6px; font-weight: bold; color: #166534;">🕒 Service Time Window:</td>
-              <td style="padding: 10px 6px; font-weight: 700; color: #15803d;">${resolvedTime}</td>
             </tr>
             <tr><td style="padding: 10px 0; font-weight: bold; color: #64748b;">Customer Notes:</td><td>${notes || 'None'}</td></tr>
           </table>
